@@ -11,13 +11,65 @@
 
 ---
 
+## Instalação no Arch Linux (via PKGBUILD)
+
+> **O PKGBUILD está incluso na raiz do repositório.**
+> Para usá-lo, você precisa primeiro clonar o repositório e então rodar o `makepkg` dentro da pasta clonada.
+
+```bash
+# 1. Instale as dependências de build
+sudo pacman -S --needed base-devel git pkg-config hidapi gtk3
+
+# 2. Clone o repositório
+git clone https://github.com/wendell0102/mechkey-configurator.git
+
+# 3. Entre na pasta (o PKGBUILD está aqui)
+cd mechkey-configurator
+
+# 4. Verifique que o PKGBUILD existe
+ls PKGBUILD
+
+# 5. Build e instala com makepkg
+makepkg -si
+```
+
+Isso instala `mechkey` (CLI) e `mechkey-gui` (GUI) e registra a regra udev automaticamente.
+
+> **Atenção:** não rode `makepkg` fora da pasta `mechkey-configurator/`.
+> O PKGBUILD deve estar no diretório atual onde o comando é executado.
+
+---
+
+## Build manual (sem makepkg)
+
+```bash
+git clone https://github.com/wendell0102/mechkey-configurator.git
+cd mechkey-configurator
+
+# CLI only
+make
+
+# GUI (requer GTK3)
+make gui
+
+# Ambos
+make all
+
+# Instalar
+sudo make install
+sudo make install-gui
+sudo make install-udev
+```
+
+---
+
 ## Features
 
 | Feature | CLI | GUI |
 |---|---|---|
 | **RGB Control** | `mechkey rgb ...` | Color picker, sliders |
 | **Lighting Effects** | `mechkey rgb mode ...` | Dropdown + speed slider |
-| **Brightness** | `mechkey rgb brightness ...` | Slider 0–255 |
+| **Brightness** | `mechkey rgb brightness ...` | Slider 0-255 |
 | **Macros** | `mechkey macro ...` | Table view + delete button |
 | **Key Remapping** | `mechkey shortcut ...` | Form with hex inputs |
 | **Profiles** | `mechkey profile ...` | Save/Load slot selector |
@@ -30,19 +82,19 @@
 
 ```
 +----------------------------------------------+
-| MechKey Configurator              [x]        |
+| MechKey Configurator                    [x]  |
 |----------------------------------------------|
 | Connection | RGB Lighting | Macros | Keymap  |
 |----------------------------------------------|
-| [Global RGB]                                  |
-|  Color: [  ##FF0000  ] [Apply to All Keys]    |
-|                                               |
-| [Lighting Effects]                            |
-|  Effect Mode: [ Breathing       v ]           |
-|  Effect Speed: |--------o---------| 128       |
-|  Brightness:   |------------------o| 255      |
+| [Global RGB]                                 |
+|  Color: [ ##FF0000 ] [Apply to All Keys]     |
+|                                              |
+| [Lighting Effects]                           |
+|  Effect Mode: [ Breathing            v ]     |
+|  Effect Speed: |--------o---------| 128      |
+|  Brightness:   |------------------o| 255     |
 |----------------------------------------------|
-| Status: RGB: Applied color to all keys        |
+| Status: RGB: Applied color to all keys       |
 +----------------------------------------------+
 ```
 
@@ -82,18 +134,12 @@ sudo pacman -S hidapi gtk3
 sudo pacman -S base-devel pkg-config
 ```
 
-### Via AUR (install with yay or paru)
-```bash
-# hidapi is in the official repos, gtk3 too
-yay -S hidapi gtk3
-```
-
 ### udev rule (required on Arch to access USB without root)
+
 ```bash
 # Create rule for your keyboard (replace 046d with your VID)
 echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", MODE="0666", GROUP="input"' \
   | sudo tee /etc/udev/rules.d/99-mechkey.rules
-
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 
@@ -103,6 +149,7 @@ sudo usermod -aG input $USER
 ```
 
 ### Other distros
+
 | Distro | Command |
 |---|---|
 | Ubuntu/Debian | `sudo apt install libhidapi-dev libgtk-3-dev` |
@@ -112,39 +159,25 @@ sudo usermod -aG input $USER
 
 ---
 
-## Build
+## CLI Usage
 
 ```bash
-git clone https://github.com/wendell0102/mechkey-configurator.git
-cd mechkey-configurator
+mechkey list                        # list known keyboards
+mechkey rgb all 255 0 0             # all keys red
+mechkey rgb key 0x04 0 0 255        # single key blue
+mechkey rgb mode 1 200              # breathing at speed 200
+mechkey rgb brightness 180          # set brightness
+mechkey rgb off                     # turn off LEDs
+mechkey macro del 3                 # delete macro ID 3
+mechkey macro list                  # list stored macros
+mechkey shortcut set 0x39 0 0x29 0  # remap Caps Lock -> Escape
+mechkey shortcut del 0x39 0         # remove remap
+mechkey profile save 0              # save config to slot 0
+mechkey profile load 1              # load slot 1
 
-# Build CLI only
-make
-
-# Build GUI only (requires GTK3)
-make gui
-
-# Build both
-make all
-
-# Install CLI to /usr/local/bin
-sudo make install
-
-# Install GUI to /usr/local/bin
-sudo make install-gui
-
-# Clean
-make clean
+# Specify keyboard by VID:PID
+mechkey -v 1B1C -p 1B13 rgb all 0 255 0
 ```
-
-### Install via PKGBUILD (Arch Linux)
-```bash
-git clone https://github.com/wendell0102/mechkey-configurator.git
-cd mechkey-configurator
-makepkg -si
-```
-
-This installs both `mechkey` (CLI) and `mechkey-gui` (GUI) and registers the udev rule automatically.
 
 ---
 
@@ -163,31 +196,11 @@ mechkey-gui
 
 ---
 
-## CLI Usage
-
-```bash
-mechkey list                          # list known keyboards
-mechkey rgb all 255 0 0               # all keys red
-mechkey rgb key 0x04 0 0 255          # single key blue
-mechkey rgb mode 1 200                # breathing at speed 200
-mechkey rgb brightness 180            # set brightness
-mechkey rgb off                       # turn off LEDs
-mechkey macro del 3                   # delete macro ID 3
-mechkey macro list                    # list stored macros
-mechkey shortcut set 0x39 0 0x29 0   # remap Caps Lock -> Escape
-mechkey shortcut del 0x39 0           # remove remap
-mechkey profile save 0                # save config to slot 0
-mechkey profile load 1                # load slot 1
-
-# Specify keyboard by VID:PID
-mechkey -v 1B1C -p 1B13 rgb all 0 255 0
-```
-
----
-
 ## How it works
 
-Most gaming keyboards expose a vendor HID interface (Usage Page `0xFF00`). This tool opens it via HIDAPI and sends 64-byte reports with a command byte + payload. The file `hid_keyboard.c` is the only layer needing adjustment per brand — everything else is protocol-agnostic.
+Most gaming keyboards expose a vendor HID interface (Usage Page `0xFF00`).
+This tool opens it via HIDAPI and sends 64-byte reports with a command byte + payload.
+The file `hid_keyboard.c` is the only layer needing adjustment per brand — everything else is protocol-agnostic.
 
 ---
 
