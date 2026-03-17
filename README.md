@@ -1,23 +1,49 @@
 # mechkey-configurator
 
 > Universal mechanical keyboard configurator in C — RGB, macros, key remapping and profiles via USB HID.
+> Includes both a **CLI** and a **GTK3 graphical interface**.
 
 ![License](https://img.shields.io/github/license/wendell0102/mechkey-configurator)
 ![Language](https://img.shields.io/badge/language-C-blue)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)
+![GUI](https://img.shields.io/badge/GUI-GTK3-green)
 
 ---
 
 ## Features
 
-| Feature | Description |
-|---|---|
-| **RGB Control** | Set per-key or all-key colors, choose effects (Static, Breathing, Wave, Reactive, Rainbow, Custom), set brightness |
-| **Macros** | Define keystroke sequences with timing delays, send to firmware, delete or list |
-| **Key Remapping** | Remap any key to another key, macro, media command or layer action |
-| **Profiles** | Save and load full configurations to/from firmware profile slots |
-| **Device Listing** | Scan USB HID bus for known mechanical keyboards |
-| **Cross-platform** | Works on Linux, macOS and Windows via HIDAPI |
+| Feature | CLI | GUI |
+|---|---|---|
+| **RGB Control** | `mechkey rgb ...` | Color picker, sliders |
+| **Lighting Effects** | `mechkey rgb mode ...` | Dropdown + speed slider |
+| **Brightness** | `mechkey rgb brightness ...` | Slider 0–255 |
+| **Macros** | `mechkey macro ...` | Table view + delete button |
+| **Key Remapping** | `mechkey shortcut ...` | Form with hex inputs |
+| **Profiles** | `mechkey profile ...` | Save/Load slot selector |
+| **Device Listing** | `mechkey list` | Connection tab with status |
+| **Cross-platform** | Linux / macOS / Windows | Linux / macOS / Windows |
+
+---
+
+## Screenshots (GUI)
+
+```
++----------------------------------------------+
+| MechKey Configurator              [x]        |
+|----------------------------------------------|  
+| Connection | RGB Lighting | Macros | Keymap  |
+|----------------------------------------------|
+| [Global RGB]                                  |
+|  Color: [  ##FF0000  ] [Apply to All Keys]    |
+|                                               |
+| [Lighting Effects]                            |
+|  Effect Mode: [ Breathing       v ]           |
+|  Effect Speed: |--------o---------| 128       |
+|  Brightness:   |------------------o| 255      |
+|----------------------------------------------|
+| Status: RGB: Applied color to all keys        |
++----------------------------------------------+
+```
 
 ---
 
@@ -26,13 +52,14 @@
 ```
 mechkey-configurator/
 ├── src/
-│   ├── hid_keyboard.h   # Core structs, enums, device handle (opaque)
+│   ├── hid_keyboard.h   # Core structs, enums, device handle
 │   ├── hid_keyboard.c   # HIDAPI wrapper: open/close/send/read/enumerate
-│   ├── rgb.h            # RGB API declarations + color macros
-│   ├── rgb.c            # RGB command builders and senders
-│   ├── macros.h         # Macro / shortcut / profile API
-│   ├── macros.c         # Macro serialisation + HID command dispatch
-│   └── main.c           # CLI entry point with full argument parser
+│   ├── rgb.h / rgb.c    # RGB API
+│   ├── macros.h / macros.c  # Macros, shortcuts, profiles API
+│   ├── main.c           # CLI entry point
+│   ├── gui.h            # GTK3 AppState struct + public GUI API
+│   ├── gui.c            # GTK3 UI: tabs, callbacks, widget builders
+│   └── gui_main.c       # GUI binary entry point
 ├── Makefile
 ├── LICENSE
 └── README.md
@@ -42,36 +69,49 @@ mechkey-configurator/
 
 ## Dependencies
 
-This project uses **[HIDAPI](https://github.com/libusb/hidapi)** for cross-platform USB HID communication.
-
-| OS | Install |
+### CLI only
+| OS | Command |
 |---|---|
 | Ubuntu/Debian | `sudo apt install libhidapi-dev` |
-| Fedora/RHEL | `sudo dnf install hidapi-devel` |
+| Fedora | `sudo dnf install hidapi-devel` |
 | macOS | `brew install hidapi` |
-| Windows | Download pre-built from [HIDAPI releases](https://github.com/libusb/hidapi/releases) |
+
+### GUI (GTK3 + HIDAPI)
+| OS | Command |
+|---|---|
+| Ubuntu/Debian | `sudo apt install libhidapi-dev libgtk-3-dev` |
+| Fedora | `sudo dnf install hidapi-devel gtk3-devel` |
+| macOS | `brew install hidapi gtk+3` |
+| Windows | MSYS2: `pacman -S mingw-w64-x86_64-hidapi mingw-w64-x86_64-gtk3` |
 
 ---
 
 ## Build
 
 ```bash
-# Clone
 git clone https://github.com/wendell0102/mechkey-configurator.git
 cd mechkey-configurator
 
-# Build (Linux/macOS)
+# Build CLI only
 make
 
-# Install system-wide (optional)
+# Build GUI only (requires GTK3)
+make gui
+
+# Build both
+make all
+
+# Install CLI system-wide
 sudo make install
 
-# Clean
+# Install GUI system-wide
+sudo make install-gui
+
+# Clean build artefacts
 make clean
 ```
 
-On Linux you may need to add a udev rule to access the keyboard without root:
-
+### Linux udev rule (no sudo needed)
 ```bash
 echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", MODE="0666"' | sudo tee /etc/udev/rules.d/99-mechkey.rules
 sudo udevadm control --reload-rules
@@ -79,95 +119,54 @@ sudo udevadm control --reload-rules
 
 ---
 
-## Usage
+## GUI Usage
+
+```bash
+./mechkey-gui
+```
+
+The graphical interface opens a window with four tabs:
+
+| Tab | Contents |
+|---|---|
+| **Connection** | VID/PID fields, Connect button, status indicator |
+| **RGB Lighting** | Color picker (all keys), effect combo-box, speed and brightness sliders |
+| **Macros** | Table of stored macros, delete button |
+| **Keymap** | Source/destination keycode form, apply/delete buttons |
+
+All actions reflect immediately in the status bar at the bottom of the window.
+
+---
+
+## CLI Usage
 
 ```
 mechkey [-v VID] [-p PID] <command> [args]
 ```
 
-### Options
-
-| Flag | Description |
-|---|---|
-| `-v <VID>` | Keyboard vendor ID in hex (default: `046D` = Logitech) |
-| `-p <PID>` | Keyboard product ID in hex (default: `C335` = G413) |
-| `-h` | Show help |
-
-### Commands
-
-#### List devices
 ```bash
-mechkey list
-```
+mechkey list                          # list known keyboards
+mechkey rgb all 255 0 0               # all keys red
+mechkey rgb key 0x04 0 0 255          # single key blue
+mechkey rgb mode 1 200                # breathing effect speed 200
+mechkey rgb brightness 180            # set brightness
+mechkey rgb off                       # turn off LEDs
+mechkey macro del 3                   # delete macro ID 3
+mechkey macro list                    # list stored macros
+mechkey shortcut set 0x39 0 0x29 0   # remap Caps Lock -> Escape
+mechkey shortcut del 0x39 0           # remove remap
+mechkey profile save 0                # save current config to slot 0
+mechkey profile load 1                # load slot 1
 
-#### RGB
-```bash
-# Set all keys to solid red
-mechkey rgb all 255 0 0
-
-# Set a single key (by HID key ID) to blue
-mechkey rgb key 0x04 0 0 255
-
-# Set breathing mode at speed 200
-mechkey rgb mode 1 200
-
-# Available modes: 0=Static  1=Breathing  2=Wave  3=Reactive  4=Rainbow  5=Custom
-
-# Set brightness (0-255)
-mechkey rgb brightness 180
-
-# Turn all LEDs off
-mechkey rgb off
-```
-
-#### Macros
-```bash
-# Delete macro by ID
-mechkey macro del 3
-
-# List stored macros
-mechkey macro list
-```
-
-#### Key Remapping (Shortcuts)
-```bash
-# Remap Caps Lock (0x39, no modifier) to Escape (0x29)
-mechkey shortcut set 0x39 0x00 0x29 0x00
-
-# Delete the remap
-mechkey shortcut del 0x39 0x00
-```
-
-#### Profiles
-```bash
-# Save current config to slot 0
-mechkey profile save 0
-
-# Load slot 1
-mechkey profile load 1
+# Specify keyboard by VID:PID
+mechkey -v 1B1C -p 1B13 rgb all 0 255 0
 ```
 
 ---
 
 ## How it works
 
-Most gaming mechanical keyboards expose a **vendor-specific HID interface** (Usage Page `0xFF00`) alongside the standard keyboard interface. This tool:
-
-1. Opens that vendor interface with HIDAPI.
-2. Sends 64-byte HID reports with a 1-byte command code + payload.
-3. Reads the firmware acknowledgement.
-
-Because each brand uses its own proprietary protocol, **`hid_keyboard.c` is the layer you extend per-brand**. The `rgb.c` and `macros.c` modules build the payload and call `hid_keyboard_send_cmd()`, so adding support for a new keyboard means only modifying the low-level serialisation.
-
----
-
-## Adding a new keyboard
-
-1. Find your keyboard's VID and PID with `lsusb` (Linux) or Device Manager (Windows).
-2. Add it to the list in `hid_keyboard_enumerate()`.
-3. Capture HID traffic from the official software (Wireshark + USBPcap).
-4. Map the captured bytes to the command constants in `hid_keyboard.h`.
-5. Adjust the payload layout in `hid_keyboard_send_cmd()` if needed.
+Most gaming keyboards expose a vendor HID interface (Usage Page `0xFF00`). This tool opens it via HIDAPI and sends 64-byte reports carrying a command byte and payload. `hid_keyboard.c` is the only layer that needs adjustment per brand; everything else is protocol-agnostic.
 
 ---
 
@@ -180,14 +179,14 @@ Because each brand uses its own proprietary protocol, **`hid_keyboard.c` is the 
 | Redragon K552 | `04F2:0111` | Protocol template |
 | Glorious GMMK | `258A:0049` | Protocol template |
 
-> **Note:** Because vendor protocols are proprietary and undocumented, the commands are based on community reverse-engineering. Contributions welcome!
+> Because vendor protocols are proprietary, commands are based on community reverse-engineering. PRs welcome!
 
 ---
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/corsair-k100`
+2. `git checkout -b feature/your-feature`
 3. Commit your changes
 4. Open a Pull Request
 
@@ -195,4 +194,4 @@ Because each brand uses its own proprietary protocol, **`hid_keyboard.c` is the 
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
